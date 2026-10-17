@@ -17,25 +17,3 @@ this repo is a pytorch framework that fixes that by using contact geometry and s
 
 ## how it works
 instead of standard symplectic spaces, we build the integration step on contact manifolds. coupled with softplus dissipation layers, it naturally bounds energy loss and stops the model from drifting.
-
----
-
-## repo structure
-
-```text
-├── core/
-│   ├── contact_layer.py        # contact geometry integrator & softplus dissipation
-│   ├── rollout.py              # multi-step unrolled trajectory rollouts
-│   └── data_utils.py           # n-dimensional canonical coordinate mapping
-├── models/
-│   ├── baseline_net.py         # standard unconstrained neural ODE baseline
-│   └── hnn_baseline.py         # conservative hamiltonian neural network baseline
-├── data/
-│   ├── dataset.py              # pendulum & chaplygin sleigh trajectory generators
-│   └── benchmark_fluid.py      # viscous fluid wave damping dataset generators
-├── training/
-│   └── train.py                # thermodynamic loss function & execution steps
-├── evaluation/
-│   ├── evaluate_energy.py      # long-term autoregressive energy conservation checks
-│   └── sensitivity.py          # step-size (dt) and horizon scaling benchmarks
-└── assets/                     # validation plots & comparison pdfs
