@@ -4,7 +4,7 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%25-blue.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%25-orange.svg)](https://pytorch.org/)
 
-standard neural ODEs and HNNs are cool for conservative physics, but they completely break down the second you introduce friction, viscosity, or non-holonomic drag. they just accumulate error and blow up. 
+standard neural ODEs and HNNs are cool for conservative physics, but they completely break down the second you introduce friction, viscosity, or non-holonomic drag. they accumulate error and blow up. 
 
 this repo is a pytorch framework that fixes that by using contact geometry and softplus-constrained dissipation. basically, it enforces thermodynamic consistency and keeps long-term trajectories stable without exploding.
 
