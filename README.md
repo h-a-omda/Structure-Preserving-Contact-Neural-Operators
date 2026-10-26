@@ -35,11 +35,6 @@ Evaluated head-to-head against a split-network Dissipative Hamiltonian Neural Ne
 * **Split-Network D-HNN Baseline Error:** 4.989066 J/s (Decoupled Parameter Drift)
 * **Our Unified Contact Operator Error:** 5.162790 J/s (Manifold-Grounded Consistency)
 
-<p align="center">
-  <img src="autoregressive_energy_drift.png" width="400" alt="Energy Drift Chart">
-  <img src="continuum_wave_field_evolution.png" width="400" alt="Wave Profile Evolution Snapshots">
-</p>
-
 ## Setup & Running
 Clone the directory and install PyTorch along with standard tracking libraries:
 ```bash
