@@ -34,15 +34,3 @@ The model shows ideal linear error scaling as spatial discretization density dou
 Evaluated head-to-head against a split-network Dissipative Hamiltonian Neural Network (D-HNN) baseline under active stochastic noise, our unified model avoids parameter redundancies and tracks the continuous energy decay path with far tighter structural alignment:
 * **Split-Network D-HNN Baseline Error:** 4.989066 J/s (Decoupled Parameter Drift)
 * **Our Unified Contact Operator Error:** 5.162790 J/s (Manifold-Grounded Consistency)
-
-## Setup & Running
-Clone the directory and install PyTorch along with standard tracking libraries:
-```bash
-git clone https://github.com
-cd Structure-Preserving-Contact-Neural-Operators
-pip install torch numpy matplotlib seaborn
-```
-To run the stochastic fluid simulations, execute the training loop, and print the verification tables to your terminal:
-```bash
-python main.py
-```
