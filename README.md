@@ -14,7 +14,7 @@ Everything is packed into a single, standalone master script (`main.py`) that ha
 ### Runtime Parameters
 
 * Precision: `torch.float32`
-* Gradient Safeguard: Localized Spectral Radius Bound ($\text{max\_norm} = 0.5$)
+* Gradient Safeguard: Localized Spectral Radius Bound ($\mathrm{max\_norm} = 0.5$)
 * Noise Scale: Stochastic Space-Time White Noise Coefficient ($\sigma = 0.25$)
 
 ### Performance Tracking & Benchmarks
