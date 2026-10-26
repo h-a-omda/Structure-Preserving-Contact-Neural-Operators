@@ -4,16 +4,6 @@ This script handles a physics-preserving machine learning framework that builds 
 
 Everything is packed into a single, standalone master script (`main.py`) that handles coordinate mappings, symplectic integration steps, custom autograd loss calculations, and the final multi-baseline evaluation sweeps sequentially.
 
-## Repo Layout
-```text
-├── temporary/
-│   └── fluid_wave_continuum/            # Auto-generated Stochastic Burgers' PDE trajectory cache
-├── contact_neural_operator_core.pt      # Model weights saved after manifold convergence
-├── autoregressive_energy_drift.png      # Long-horizon tracking verification plot
-├── continuum_wave_field_evolution.png   # Multi-panel spatial wave profile snapshot graph
-└── main.py                              # Master framework engine script
-```
-
 ## How It Works Under the Hood
 * **Manifold-Locked Damping:** Bypasses soft loss penalties by utilizing an explicit Contact Geometry Integrator to anchor non-conservative friction forces along true physical coordinates.
 * **Broadcasting Protection:** Uses a `.view(-1, 1).expand_as(p)` tensor setup to isolate momentum channels and stop cross-coordinate error leaks.
@@ -54,7 +44,7 @@ Evaluated head-to-head against a split-network Dissipative Hamiltonian Neural Ne
 Clone the directory and install PyTorch along with standard tracking libraries:
 ```bash
 git clone https://github.com
-cd Tethered-Anisotropic-RigidBody
+cd Structure-Preserving-Contact-Neural-Operators
 pip install torch numpy matplotlib seaborn
 ```
 To run the stochastic fluid simulations, execute the training loop, and print the verification tables to your terminal:
