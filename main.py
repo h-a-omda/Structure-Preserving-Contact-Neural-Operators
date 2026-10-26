@@ -60,6 +60,9 @@ class ContactGeometryIntegrator(nn.Module):
         self.H_net = ContactHamiltonianNet(state_dim)
 
     def forward(self, q, p, S):
+        dim = self.state_dim
+
+        
         q_eval = q.clone().requires_grad_(True)
         p_eval = p.clone().requires_grad_(True)
         S_eval = S.clone().requires_grad_(True)
@@ -67,6 +70,7 @@ class ContactGeometryIntegrator(nn.Module):
         state_cat = torch.cat([q_eval, p_eval, S_eval], dim=-1)
         H = self.H_net(state_cat)
 
+        
         grads = torch.autograd.grad(
             outputs=H.sum(),
             inputs=state_cat,
@@ -80,19 +84,17 @@ class ContactGeometryIntegrator(nn.Module):
             underflow_mask = (grads.abs() < 1e-12)
             grads = grads.masked_fill(underflow_mask, 0.0)
 
-        dim = self.state_dim
-        dH_dq = grads[:, :dim]
-        dH_dp = grads[:, dim:2*dim]
-        dH_dS = grads[:, 2*dim:]
+        dH_dp = grads[..., dim:2*dim]
 
-        dH_dS_constrained = torch.nn.functional.softplus(dH_dS)
-
+        
         q_next = q + self.dt * dH_dp.reshape_as(q)
 
+        
         q_next_eval = q_next.clone().requires_grad_(True)
         state_cat_next = torch.cat([q_next_eval, p_eval, S_eval], dim=-1)
         H_next = self.H_net(state_cat_next)
 
+        
         grads_next = torch.autograd.grad(
             outputs=H_next.sum(),
             inputs=state_cat_next,
@@ -106,13 +108,19 @@ class ContactGeometryIntegrator(nn.Module):
             underflow_mask_next = (grads_next.abs() < 1e-12)
             grads_next = grads_next.masked_fill(underflow_mask_next, 0.0)
 
-        dH_dq_next = grads_next[:, :dim]
-        dH_dS_next = grads_next[:, 2*dim:]
+        dH_dq_next = grads_next[..., :dim]
+        dH_dS_next = grads_next[..., 2*dim:]
         dH_dS_constrained_next = torch.nn.functional.softplus(dH_dS_next)
 
-        friction_term = p * dH_dS_constrained_next.view(-1, 1).expand_as(p)
+        
+        friction_term = p * dH_dS_constrained_next.expand_as(p)
+
         p_next = p - self.dt * (dH_dq_next.reshape_as(p) + friction_term)
-        S_next = S + self.dt * (torch.sum(p_next * dH_dp.reshape_as(p), dim=-1, keepdim=True).reshape_as(S) - H_next.reshape_as(S))
+
+        dH_dp_next = grads_next[..., dim:2*dim]
+        S_power_balance = torch.sum(p_next * dH_dp_next.reshape_as(p_next), dim=-1, keepdim=True).reshape_as(S)
+
+        S_next = S + self.dt * (S_power_balance - H_next.reshape_as(S))
 
         return q_next, p_next, S_next
 
@@ -134,7 +142,6 @@ class ContactTrajectoryRollout(nn.Module):
             S_history.append(S_current)
 
         return torch.stack(q_history, dim=0), torch.stack(p_history, dim=0), torch.stack(S_history, dim=0)
-
 
 
 class StandardMLP(nn.Module):
@@ -166,7 +173,6 @@ class BaselineNeuralODE(nn.Module):
             q_history.append(q_current)
             p_history.append(p_current)
         return torch.stack(q_history, dim=0), torch.stack(p_history, dim=0)
-
 
 
 class ViscousFluidWaveDataset(Dataset):
@@ -239,7 +245,6 @@ def get_fluid_loader(data_dir, batch_size=32, sequence_length=10, shuffle=True):
     )
 
 
-
 class ThermodynamicLoss(nn.Module):
     def __init__(self, alpha=1.0, beta=0.1):
         super().__init__()
@@ -268,30 +273,64 @@ def train_step(model, optimizer, criterion, batch_states, rollout_steps, device)
     return loss.item(), loss_traj, loss_th
 
 
+def train_step_curriculum(model, optimizer, criterion, batch_states, current_horizon, device):
+    optimizer.zero_grad()
+    q_all, p_all, S_all = map_physics_to_canonical(batch_states, device=device)
+
+    
+    target_q = q_all[1:current_horizon+1]
+    target_p = p_all[1:current_horizon+1]
+
+    
+    pred_q, pred_p, pred_S = model(q_all[0], p_all[0], S_all[0], rollout_steps=current_horizon)
+
+    loss, loss_traj, loss_th = criterion(pred_q, pred_p, pred_S, target_q, target_p)
+    loss.backward()
+
+    
+    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.5)
+    optimizer.step()
+    return loss.item(), loss_traj, loss_th
+
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"[@] Initializing Constrained Contact Operator Workspace on: {device}")
-    epochs = 15
+    print(f"[@] Initializing Advanced Contact Operator Workspace on: {device}")
     horizon = 5
+
+    
+    epochs_per_phase = 10
     batch_size = 32
     dt_base = 0.005
-    train_loader = get_fluid_loader("./raw_trajectories", batch_size=batch_size, sequence_length=horizon+1, shuffle=True)
+
+
+    train_loader = get_fluid_loader("./raw_trajectories", batch_size=batch_size, sequence_length=25, shuffle=True)
+
     contact_model = ContactTrajectoryRollout(state_dim=3, dt=dt_base).to(device)
     baseline_model = BaselineNeuralODE(state_dim=3, dt=dt_base).to(device)
-    criterion = ThermodynamicLoss(alpha=1.0, beta=0.5)
-    optimizer_c = optim.Adam(contact_model.parameters(), lr=1e-3)
-    optimizer_b = optim.Adam(baseline_model.parameters(), lr=1e-3)
-    print("[*] Launching training operations over viscous medium damping domains...")
-    contact_model.train()
-    for epoch in range(1, epochs + 1):
-        total, traj, th, counts = 0.0, 0.0, 0.0, 0
-        for batch in train_loader:
-            loss, loss_tr, loss_th = train_step(contact_model, optimizer_c, criterion, batch, horizon, device)
-            total += loss; traj += loss_tr; th += loss_th; counts += 1
-        if epoch % 5 == 0 or epoch == 1:
-            print(f"    Epoch [{epoch:02d}/{epochs:02d}] -> Loss: {total/counts:.6f} | Trajectory MSE: {traj/counts:.6f} | Thermo Penalty: {th/counts:.6f}")
 
+    
+    criterion = ThermodynamicLoss(alpha=5.0, beta=0.2)
+    optimizer_c = optim.Adam(contact_model.parameters(), lr=5e-4) 
+    optimizer_b = optim.Adam(baseline_model.parameters(), lr=1e-3)
+
+    print("[*] Launching Phased Horizon Curriculum Training...")
+    contact_model.train()
+
+
+    curriculum_phases = [5, 10, 20]
+
+    for phase_idx, dynamic_horizon in enumerate(curriculum_phases):
+        print(f"\n[+] Entering Curriculum Phase {phase_idx+1}/3 | Target Horizon Horizon: {dynamic_horizon} Steps")
+        for epoch in range(1, epochs_per_phase + 1):
+            total, traj, th, counts = 0.0, 0.0, 0.0, 0
+            for batch in train_loader:
+                loss, loss_tr, loss_th = train_step_curriculum(
+                    contact_model, optimizer_c, criterion, batch, dynamic_horizon, device
+                )
+                total += loss; traj += loss_tr; th += loss_th; counts += 1
+            if epoch % 5 == 0 or epoch == 1:
+                print(f"    Epoch [{epoch:02d}/{epochs_per_phase:02d}] -> Loss: {total/counts:.6f} | Trajectory MSE: {traj/counts:.6f} | Thermo Penalty: {th/counts:.6f}")
 
     baseline_model.train()
     mse_fn = nn.MSELoss()
@@ -333,7 +372,7 @@ def main():
     baseline_model.dt = dt_base
 
     def compute_energy_drift(p_tensor):
-        # E = p^2 / 2m
+        
         energy = torch.sum(p_tensor**2, dim=-1) / 2.0
         return torch.abs(energy - energy[0]).mean().item()
 
