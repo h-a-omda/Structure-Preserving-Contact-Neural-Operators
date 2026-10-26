@@ -1,21 +1,21 @@
 ### Thermodynamically Constrained Neural Operators on Dissipative Contact Manifolds
 
-This script handles a physics-preserving machine learning framework that builds non-linear fluid dissipation directly onto contact geometry manifolds. Instead of using standard black-box architectures that loosely approximate paths, it embeds thermodynamic boundaries straight into a semi-implicit contact-symplectic integration step. By forcing the forward pass to strictly follow the Second Law of Thermodynamics (dS >= 0), the code prevents the unphysical energy leaks that usually break standard Neural ODEs.
+This script handles a physics-preserving machine learning framework that builds non-linear fluid dissipation directly onto contact geometry manifolds. Instead of using standard black-box architectures that loosely approximate paths, it embeds thermodynamic boundaries straight into a semi-implicit contact-symplectic integration step. By forcing the forward pass to strictly follow the Second Law of Thermodynamics ($\frac{dS}{dt} \ge 0$), the code prevents the unphysical energy leaks that usually break standard Neural ODEs.
 
-Everything is packed into a single, standalone master script (main.py) that handles coordinate mappings, semi-implicit step updates, custom autograd loss calculations, and the final multi-baseline evaluation sweeps sequentially.
+Everything is packed into a single, standalone master script (`main.py`) that handles coordinate mappings, semi-implicit step updates, custom autograd loss calculations, and the final multi-baseline evaluation sweeps sequentially.
 
 ### How It Works Under the Hood
 
-* Manifold-Locked Damping: Bypasses unconstrained parameter tracking by utilizing a structure-preserving Contact Geometry Integrator that binds non-conservative friction forces directly to coordinate-free geometric coordinates (q, p, S).
-* Staggered Semi-Implicit Stepping: Calculates coordinate positions q_{n+1} first, subsequently solving conjugate momentum vectors p_{n+1} and entropy sinks S_{n+1} using fields evaluated at the updated configuration boundary to eliminate geometric warping.
-* Precision Underflow Mask: Filters out floating-point noise below 10^-12 near the precision floor, keeping the loops stable across hyper-stiff boundary layers.
+* Manifold-Locked Damping: Bypasses unconstrained parameter tracking by utilizing a structure-preserving Contact Geometry Integrator that binds non-conservative friction forces directly to coordinate-free geometric coordinates $(q, p, S)$.
+* Staggered Semi-Implicit Stepping: Calculates coordinate positions $q_{n+1}$ first, subsequently solving conjugate momentum vectors $p_{n+1}$ and entropy sinks $S_{n+1}$ using fields evaluated at the updated configuration boundary to eliminate geometric warping.
+* Precision Underflow Mask: Filters out floating-point noise below $10^{-12}$ near the precision floor, keeping the loops stable across hyper-stiff boundary layers.
 * CPU Efficiency: Enforcing geometric boundaries clears the optimization path, allowing the model to reach deep trajectory convergence within a brief 15-epoch window on a standard single-channel CPU without requiring a GPU cluster.
 
 ### Runtime Parameters
 
-* Precision: torch.float32
-* Gradient Safeguard: Localized Spectral Radius Bound (max_norm = 0.5)
-* Noise Scale: Stochastic Space-Time White Noise Coefficient (sigma = 0.25)
+* Precision: `torch.float32`
+* Gradient Safeguard: Localized Spectral Radius Bound ($\text{max\_norm} = 0.5$)
+* Noise Scale: Stochastic Space-Time White Noise Coefficient ($\sigma = 0.25$)
 
 ### Performance Tracking & Benchmarks
 
@@ -44,12 +44,12 @@ By regularizing the network with continuous coordinate geometry fields instead o
 
 #### 3. Spatial Mesh Discretization Scaling
 
-The model shows ideal linear error scaling as spatial discretization density doubles (N = 16 -> 128). This confirms it tracks continuous PDE mechanics natively, whereas the standard baseline resorts to unphysical over-smoothing to keep its parameters from exploding.
+The model shows ideal linear error scaling as spatial discretization density doubles ($N = 16 \to 128$). This confirms it tracks continuous PDE mechanics natively, whereas the standard baseline resorts to unphysical over-smoothing to keep its parameters from exploding.
 
-* Grid Density N: 16  | Baseline Neural ODE MSE: 0.019004 | Contact Operator MSE: 0.021393
-* Grid Density N: 32  | Baseline Neural ODE MSE: 0.039632 | Contact Operator MSE: 0.043099
-* Grid Density N: 64  | Baseline Neural ODE MSE: 0.080864 | Contact Operator MSE: 0.084545
-* Grid Density N: 128 | Baseline Neural ODE MSE: 0.155259 | Contact Operator MSE: 0.168510
+* Grid Density $N$: 16  | Baseline Neural ODE MSE: 0.019004 | Contact Operator MSE: 0.021393
+* Grid Density $N$: 32  | Baseline Neural ODE MSE: 0.039632 | Contact Operator MSE: 0.043099
+* Grid Density $N$: 64  | Baseline Neural ODE MSE: 0.080864 | Contact Operator MSE: 0.084545
+* Grid Density $N$: 128 | Baseline Neural ODE MSE: 0.155259 | Contact Operator MSE: 0.168510
 
 #### 4. Continuous Dissipation Rate Tracking Error Magnitude
 
